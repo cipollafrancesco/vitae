@@ -11,8 +11,9 @@ const ubuntu = Ubuntu({
 })
 
 export const metadata: Metadata = {
-  title: 'CV Editor',
-  description: 'Personal resume editor with live preview and PDF export',
+  title: 'Vitae — Free Résumé & CV Editor',
+  description:
+    'Build your résumé with a live preview, drag-and-drop layout, and one-click PDF export.',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
