@@ -123,4 +123,5 @@ export const seedResume: Resume = {
     right: ['skills', 'projects', 'languages', 'interests'],
   },
   dateInline: false,
+  tailoredFor: { company: '', position: '' },
 }

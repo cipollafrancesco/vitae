@@ -1,6 +1,6 @@
 'use client'
 
-import { ReactNode, useEffect, useId, useRef, useState } from 'react'
+import { ReactNode, useEffect, useId, useImperativeHandle, useRef, useState, forwardRef } from 'react'
 import { createPortal } from 'react-dom'
 
 interface PopoverProps {
@@ -15,6 +15,13 @@ interface PopoverProps {
   children: ReactNode | ((close: () => void) => ReactNode)
 }
 
+/** Imperative handle for opening a Popover from outside its own trigger button — e.g. a
+ *  row's right-click context menu, which should open the exact same panel (same
+ *  positioning/flip-upward logic) as clicking its kebab trigger. */
+export interface PopoverHandle {
+  open: () => void
+}
+
 // Reusable trigger + floating panel shared by the toolbar's "More actions" menu and its
 // "Style" settings popover. The panel is kept mounted at all times and toggled via
 // opacity/scale/translate classes so both the enter AND exit animate — the CSS cross-fade
@@ -27,18 +34,14 @@ interface PopoverProps {
 // non-visible — so an in-flow absolute child tall enough to poke out the bottom would silently
 // turn the whole toolbar into its own vertical scroll container. Portaling sidesteps that (and
 // any future clipping ancestor) entirely.
-export function Popover({
-  label,
-  triggerContent,
-  triggerClassName,
-  panelClassName,
-  align = 'end',
-  role = 'menu',
-  children,
-}: PopoverProps) {
+export const Popover = forwardRef<PopoverHandle, PopoverProps>(function Popover(
+  { label, triggerContent, triggerClassName, panelClassName, align = 'end', role = 'menu', children },
+  ref,
+) {
   const [open, setOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
-  const [coords, setCoords] = useState<{ top: number; left?: number; right?: number }>({ top: 0 })
+  const [coords, setCoords] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
+  const [openUpward, setOpenUpward] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -55,21 +58,50 @@ export function Popover({
 
   const close = () => setOpen(false)
 
+  // Always anchors to the trigger button's own position — even when called imperatively
+  // from a right-click elsewhere on a row (see `useImperativeHandle` below) — so the panel
+  // opens in the same place either way, reusing this one positioning/flip-upward path.
+  const openPanel = () => {
+    const rect = triggerRef.current?.getBoundingClientRect()
+    if (rect) {
+      // The panel is always mounted (just hidden via opacity/scale — see `panel` below), so
+      // its real size is measurable before we ever position it. That lets a trigger near an
+      // edge of the viewport — the last row in a long, scrollable list, or a kebab near the
+      // left edge of a narrow sidebar — flip/clamp the panel instead of opening off-screen.
+      const margin = 8
+      const panelRect = panelRef.current?.getBoundingClientRect()
+      const panelHeight = panelRect?.height ?? 0
+      const panelWidth = panelRect?.width ?? 0
+
+      const spaceBelow = window.innerHeight - rect.bottom - margin
+      const spaceAbove = rect.top - margin
+      const upward = panelHeight > spaceBelow && panelHeight <= spaceAbove
+      const top = upward
+        ? rect.top - panelHeight - margin
+        : Math.min(rect.bottom + margin, window.innerHeight - panelHeight - margin)
+
+      // `align` picks which corner of the trigger the panel would naturally hang from, but
+      // is clamped afterward so it always stays fully within the viewport regardless of how
+      // close the trigger sits to either edge.
+      const desiredLeft = align === 'end' ? rect.right - panelWidth : rect.left
+      const maxLeft = Math.max(margin, window.innerWidth - panelWidth - margin)
+      const left = Math.min(Math.max(desiredLeft, margin), maxLeft)
+
+      setOpenUpward(upward)
+      setCoords({ top: Math.max(margin, top), left })
+    }
+    setOpen(true)
+  }
+
   const toggle = () => {
     if (open) {
       setOpen(false)
       return
     }
-    const rect = triggerRef.current?.getBoundingClientRect()
-    if (rect) {
-      setCoords(
-        align === 'end'
-          ? { top: rect.bottom + 8, right: window.innerWidth - rect.right }
-          : { top: rect.bottom + 8, left: rect.left },
-      )
-    }
-    setOpen(true)
+    openPanel()
   }
+
+  useImperativeHandle(ref, () => ({ open: openPanel }))
 
   // Outside click / Escape / resize dismissal. Escape returns focus to the trigger so
   // keyboard users don't lose their place. Resize closes rather than reflow, since these
@@ -127,6 +159,17 @@ export function Popover({
     items[nextIndex]?.focus()
   }
 
+  // Tailwind's class scanner needs each utility to appear as a complete literal string
+  // somewhere in this file, so the four corner combinations are spelled out rather than
+  // built via `origin-${...}-${...}` template interpolation (which it can't statically see).
+  const originCls = openUpward
+    ? align === 'end'
+      ? 'origin-bottom-right'
+      : 'origin-bottom-left'
+    : align === 'end'
+      ? 'origin-top-right'
+      : 'origin-top-left'
+
   const panel = (
     <div
       id={panelId}
@@ -139,13 +182,12 @@ export function Popover({
         position: 'fixed',
         top: coords.top,
         left: coords.left,
-        right: coords.right,
         boxShadow: 'var(--shadow-popover)',
       }}
-      className={`z-50 min-w-[11rem] origin-top-right rounded-xl bg-white p-1 transition-[opacity,transform] duration-150 ease-out motion-reduce:transition-none ${
+      className={`z-50 min-w-[11rem] ${originCls} rounded-xl bg-white p-1 transition-[opacity,transform] duration-150 ease-out motion-reduce:transition-none ${
         open
           ? 'pointer-events-auto translate-y-0 scale-100 opacity-100'
-          : 'pointer-events-none -translate-y-1 scale-95 opacity-0'
+          : `pointer-events-none scale-95 opacity-0 ${openUpward ? 'translate-y-1' : '-translate-y-1'}`
       } ${panelClassName ?? ''}`}
     >
       {typeof children === 'function' ? children(close) : children}
@@ -170,7 +212,7 @@ export function Popover({
       {mounted && createPortal(panel, document.body)}
     </div>
   )
-}
+})
 
 export function MenuItem({
   children,

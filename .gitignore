@@ -42,3 +42,6 @@ next-env.d.ts
 
 # personal CV data (local dev only — never committed)
 /src/lib/seed.local.ts
+
+# tailored resume variants (local only — never committed)
+/fine-tuned-resumes/

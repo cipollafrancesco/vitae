@@ -3,7 +3,7 @@
 import { useId, useRef } from 'react'
 import { useFormContext } from 'react-hook-form'
 import { FormResume } from '@/lib/types'
-import { fromForm, toForm, exportJson, importJson, exportText } from '@/lib/storage'
+import { fromForm, toForm, exportJson, exportText } from '@/lib/storage'
 import { seedResume } from '@/lib/seed'
 import { IconUndo, IconRedo, IconMore, IconSliders } from '@/components/preview/primitives/Icons'
 import { Popover, MenuItem, MenuDivider } from '@/components/editor/Popover'
@@ -21,6 +21,9 @@ interface Props {
   onRedo: () => void
   canUndo: boolean
   canRedo: boolean
+  /** Adds one or more resume JSON files to the document library (does not replace the
+   *  currently active document in place — see DocumentSidebar / useDocumentLibrary). */
+  onImport: (files: FileList) => void
 }
 
 export function Toolbar({
@@ -34,6 +37,7 @@ export function Toolbar({
   onRedo,
   canUndo,
   canRedo,
+  onImport,
 }: Props) {
   const { getValues, reset, register } = useFormContext<FormResume>()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -43,15 +47,8 @@ export function Toolbar({
 
   const handleExportTxt = () => exportText(fromForm(getValues()))
 
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    try {
-      const resume = await importJson(file)
-      reset(toForm(resume))
-    } catch {
-      alert('Invalid JSON file. Please export a valid resume first.')
-    }
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length) onImport(e.target.files)
     e.target.value = ''
   }
 
@@ -230,7 +227,7 @@ export function Toolbar({
                   close()
                 }}
               >
-                Import JSON
+                Add document(s)…
               </MenuItem>
               <MenuItem
                 disabled={!draftExists}
@@ -260,6 +257,7 @@ export function Toolbar({
         ref={fileRef}
         type="file"
         accept=".json,application/json"
+        multiple
         onChange={handleImport}
         className="sr-only"
       />

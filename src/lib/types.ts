@@ -61,6 +61,14 @@ export interface Layout {
   right: string[]
 }
 
+// Not rendered on the resume itself — a private note for tracking which job this variant
+// was fine-tuned for, so it's easy to tell documents apart later (e.g. in the Documents
+// sidebar) beyond just the document's own display name.
+export interface TailoredFor {
+  company: string
+  position: string
+}
+
 export interface Resume {
   accentColor: string
   profile: Profile
@@ -73,6 +81,7 @@ export interface Resume {
   customSections: CustomSection[]
   layout: Layout
   dateInline: boolean
+  tailoredFor: TailoredFor
 }
 
 export interface StringField {
@@ -167,6 +176,11 @@ const layoutSchema = z.object({
   right: z.array(z.string()),
 })
 
+const tailoredForSchema = z.object({
+  company: z.string().default(''),
+  position: z.string().default(''),
+})
+
 export const resumeSchema = z.object({
   accentColor: z.string().default('#292929'),
   profile: profileSchema,
@@ -182,4 +196,47 @@ export const resumeSchema = z.object({
     right: ['skills', 'projects', 'languages', 'interests'],
   }),
   dateInline: z.boolean().default(false),
+  tailoredFor: tailoredForSchema.default({ company: '', position: '' }),
+})
+
+// ============================================================
+// Multiple resume documents ("Documents" sidebar)
+// ============================================================
+// A user can upload/keep several resumes side by side (e.g. one variant per job
+// description) and switch between them. Storage keeps a lightweight index (`DocumentMeta`,
+// one per document) separate from each document's heavy `Resume` body (which can carry a
+// multi-hundred-KB base64 photo) — see storage.ts. `ResumeDocument` is the assembled shape
+// the rest of the app works with.
+export interface DocumentMeta {
+  id: string
+  name: string
+  createdAt: number
+  updatedAt: number
+  accentColor: string
+}
+
+export interface ResumeDocument {
+  id: string
+  name: string
+  resume: Resume
+  createdAt: number
+  updatedAt: number
+}
+
+export const documentMetaSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+  accentColor: z.string(),
+})
+
+export const documentMetaListSchema = z.array(documentMetaSchema)
+
+export const resumeDocumentSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  resume: resumeSchema,
+  createdAt: z.number(),
+  updatedAt: z.number(),
 })

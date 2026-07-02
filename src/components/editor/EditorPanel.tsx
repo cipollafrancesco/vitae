@@ -5,6 +5,7 @@ import { useFormContext, useFieldArray, useWatch } from 'react-hook-form'
 import { FormResume, FormCustomSection, Layout } from '@/lib/types'
 import { moveWithin, toggleColumn, dropBefore } from '@/lib/layout'
 import { ProfileForm } from './ProfileForm'
+import { TailoredForForm } from './TailoredForForm'
 import { ContactsForm } from './ContactsForm'
 import { ExperienceForm } from './ExperienceForm'
 import { EducationForm } from './EducationForm'
@@ -222,6 +223,15 @@ export function EditorPanel({ navTarget }: { navTarget?: NavTarget | null }) {
         onToggle={() => toggle('profile')}
       >
         <ProfileForm />
+      </CollapsibleCard>
+
+      <CollapsibleCard
+        id="ed-card-tailored-for"
+        label="Tailored For"
+        isOpen={open.has('tailored-for')}
+        onToggle={() => toggle('tailored-for')}
+      >
+        <TailoredForForm />
       </CollapsibleCard>
 
       <CollapsibleCard
