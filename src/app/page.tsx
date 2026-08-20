@@ -23,6 +23,7 @@ import { Toolbar } from '@/components/editor/Toolbar'
 import { EditorPanel, NavTarget } from '@/components/editor/EditorPanel'
 import { DocumentSidebar } from '@/components/editor/DocumentSidebar'
 import { IconFile } from '@/components/preview/primitives/Icons'
+import { TailorPanel, TailorApplyRequest } from '@/components/ai/TailorPanel'
 import { ResumePreview } from '@/components/preview/ResumePreview'
 import { AtsResumePreview } from '@/components/preview/ats/AtsResumePreview'
 import { PagedPreview } from '@/components/preview/PagedPreview'
@@ -32,6 +33,7 @@ const MODE_KEY = 'cv-editor-mode'
 
 export default function Page() {
   const [showPreview, setShowPreview] = useState(false)
+  const [showTailor, setShowTailor] = useState(false)
   const [showDocs, setShowDocs] = useState(false)
   const [docsCollapsed, setDocsCollapsed] = useState(false)
   const [mode, setMode] = useState<Mode>('styled')
@@ -181,6 +183,37 @@ export default function Page() {
     if (doc) handleSelect(doc.id)
   }
 
+  // Applying AI suggestions goes through the same "replace the whole form" path as Load Draft,
+  // import, and undo — so the debounced watch records it into useResumeHistory and a single
+  // Undo reverts the whole application, with no extra bookkeeping here.
+  const handleApplyTailor = ({ resume: next, documentName, asNewDocument }: TailorApplyRequest) => {
+    setShowTailor(false)
+
+    if (!asNewDocument) {
+      reset(toForm(next))
+      return
+    }
+
+    // Duplicating first keeps the original variant byte-identical; the copy is what receives
+    // the accepted changes. flushPendingSave mirrors handleDuplicate — a timer left running
+    // from before the switch would otherwise write these edits into the wrong document.
+    flushPendingSave()
+    const doc = lib.duplicate(lib.activeId)
+    if (!doc) {
+      reset(toForm(next))
+      return
+    }
+    if (documentName) {
+      const unique = uniqueName(
+        documentName,
+        new Set(lib.documents.filter((d) => d.id !== doc.id).map((d) => d.name)),
+      )
+      lib.rename(doc.id, unique)
+    }
+    handleSelect(doc.id)
+    reset(toForm(next))
+  }
+
   const handleDeleteDoc = (id: string) => {
     const doc = lib.documents.find((d) => d.id === id)
     if (!doc) return
@@ -234,6 +267,7 @@ export default function Page() {
           canUndo={canUndo}
           canRedo={canRedo}
           onImport={handleUpload}
+          onOpenTailor={() => setShowTailor(true)}
         />
 
         {saveError && (
@@ -304,6 +338,13 @@ export default function Page() {
           {showPreview ? 'Edit' : 'Preview'}
         </button>
       </div>
+
+      <TailorPanel
+        resume={resume}
+        open={showTailor}
+        onClose={() => setShowTailor(false)}
+        onApply={handleApplyTailor}
+      />
 
       <div className="print-only">{preview}</div>
     </FormProvider>

@@ -8,16 +8,14 @@ import {
   TypeValidationError,
 } from 'ai'
 import type { z } from 'zod'
+import { API_KEY_HEADER, MODEL_HEADER, PROVIDER_HEADER } from './headers'
+import { PROVIDER_RUNTIMES } from './providerModels'
 import { isProviderId, PROVIDERS, type ProviderId } from './providers'
 
 // Server-side only. Holds no key of its own: the user's key arrives on the request, is used
 // for exactly one call, and is never persisted or logged. Nothing here writes the key, the
 // resume, or the job description anywhere — that's a deliberate constraint, not an oversight,
 // so keep it that way when adding logging.
-
-export const PROVIDER_HEADER = 'x-ai-provider'
-export const MODEL_HEADER = 'x-ai-model'
-export const API_KEY_HEADER = 'x-ai-api-key'
 
 /** A failure we already have a user-facing sentence for. */
 export class AiRequestError extends Error {
@@ -89,19 +87,20 @@ export async function generateStructured<T>({
   system: string
   prompt: string
 }): Promise<T> {
-  const entry = PROVIDERS[credentials.provider]
+  const info = PROVIDERS[credentials.provider]
+  const runtime = PROVIDER_RUNTIMES[credentials.provider]
 
   try {
     const { output } = await generateText({
-      model: entry.createModel(credentials.apiKey, credentials.model),
+      model: runtime.createModel(credentials.apiKey, credentials.model),
       system,
       prompt,
       output: Output.object({ schema }),
-      ...(entry.providerOptions ? { providerOptions: entry.providerOptions } : {}),
+      ...(runtime.providerOptions ? { providerOptions: runtime.providerOptions } : {}),
     })
     return output
   } catch (error) {
-    throw toAiRequestError(error, entry.label)
+    throw toAiRequestError(error, info.label)
   }
 }
 
@@ -142,6 +141,15 @@ function toAiRequestError(error: unknown, providerLabel: string): AiRequestError
     }
     if (error.isRetryable || status >= 500) {
       return new AiRequestError(502, `${providerLabel} is having trouble right now. Try again shortly.`)
+    }
+    // Not every provider signals a bad key with 401: Google returns 400 INVALID_ARGUMENT for
+    // one. Since the request body is schema-validated before it leaves, a client error that
+    // reaches here is almost always the key or the model id, so name both rather than shrug.
+    if (status === 400) {
+      return new AiRequestError(
+        400,
+        `${providerLabel} rejected the request — usually an invalid API key or model id. Check both in AI settings.`,
+      )
     }
     return new AiRequestError(502, `${providerLabel} rejected the request.`)
   }

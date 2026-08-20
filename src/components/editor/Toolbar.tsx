@@ -5,7 +5,13 @@ import { useFormContext } from 'react-hook-form'
 import { FormResume } from '@/lib/types'
 import { fromForm, toForm, exportJson, exportText } from '@/lib/storage'
 import { seedResume } from '@/lib/seed'
-import { IconUndo, IconRedo, IconMore, IconSliders } from '@/components/preview/primitives/Icons'
+import {
+  IconUndo,
+  IconRedo,
+  IconMore,
+  IconSliders,
+  IconSparkle,
+} from '@/components/preview/primitives/Icons'
 import { Popover, MenuItem, MenuDivider } from '@/components/editor/Popover'
 
 type Mode = 'styled' | 'ats'
@@ -24,6 +30,8 @@ interface Props {
   /** Adds one or more resume JSON files to the document library (does not replace the
    *  currently active document in place — see DocumentSidebar / useDocumentLibrary). */
   onImport: (files: FileList) => void
+  /** Opens the job-description tailoring panel. */
+  onOpenTailor: () => void
 }
 
 export function Toolbar({
@@ -38,6 +46,7 @@ export function Toolbar({
   canUndo,
   canRedo,
   onImport,
+  onOpenTailor,
 }: Props) {
   const { getValues, reset, register } = useFormContext<FormResume>()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -172,6 +181,16 @@ export function Toolbar({
             </label>
           </Popover>
         )}
+
+        <button
+          type="button"
+          onClick={onOpenTailor}
+          title="Tailor this resume to a job description"
+          className={`${btnCls} border border-gray-200 text-gray-700 hover:bg-gray-50 inline-flex items-center gap-1.5`}
+        >
+          <IconSparkle className="w-4 h-4" />
+          <span className="hidden sm:inline">Tailor</span>
+        </button>
 
         <button
           type="button"
