@@ -26,8 +26,8 @@ client-side — your data never leaves the browser.
 ## Getting started
 
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000). The app seeds itself with example data on first
@@ -43,9 +43,7 @@ CV locally without ever committing it, create `src/lib/seed.local.ts` (gitignore
 ```ts
 import { Resume } from './types'
 
-export const seedResume: Resume = {
-  /* ... your real data ... */
-}
+export const seedResume: Resume = {/* ... your real data ... */}
 ```
 
 When present, `next.config.ts` aliases the app's seed import to this file instead of the
@@ -53,13 +51,13 @@ placeholder — for local dev only, since the file never ships in the repo or a 
 
 ## Scripts
 
-| Command          | Description                       |
-| ---------------- | --------------------------------- |
-| `npm run dev`    | Start the dev server              |
-| `npm run build`  | Production build                  |
-| `npm run start`  | Serve the production build        |
-| `npm run lint`   | Lint the codebase                 |
-| `npm run format` | Format the codebase with Prettier |
+| Command       | Description                       |
+| ------------- | --------------------------------- |
+| `pnpm dev`    | Start the dev server              |
+| `pnpm build`  | Production build                  |
+| `pnpm start`  | Serve the production build        |
+| `pnpm lint`   | Lint the codebase                 |
+| `pnpm format` | Format the codebase with Prettier |
 
 ## License
 
